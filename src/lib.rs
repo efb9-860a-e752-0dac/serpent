@@ -1,10 +1,8 @@
 mod tables;
 
-#[macro_use]
-extern crate log;
-
 type Key = [u8; 32];
 type Subkey = u128;
+type Subkeys = [Subkey; ROUNDS + 1];
 
 const PHI: u32 = 0x9e3779b9;
 const ROUNDS: usize = 32;
@@ -15,6 +13,26 @@ fn apply_s(s_idx: usize, nibble: u8) -> u8 {
 
 fn apply_s_inv(s_idx: usize, nibble: u8) -> u8 {
     tables::SBOX_INV[s_idx % 8][nibble as usize]
+}
+
+fn apply_s_hat(s_idx: usize, source: u128) -> u128 {
+    let mut res = 0u128;
+    for i in 0..32 {
+        let src_nibble = (source >> (i * 4)) as u8 & 0xf;
+        let res_nibble = apply_s(s_idx, src_nibble) as u128;
+        res |= res_nibble << (i * 4);
+    }
+    res
+}
+
+fn apply_s_hat_inv(s_idx: usize, source: u128) -> u128 {
+    let mut res = 0u128;
+    for i in 0..32 {
+        let src_nibble = (source >> (i * 4)) as u8 & 0xf;
+        let res_nibble = apply_s_inv(s_idx, src_nibble) as u128;
+        res |= res_nibble << (i * 4);
+    }
+    res
 }
 
 fn apply_permutation(table: &[u8], input: u128) -> u128 {
@@ -40,7 +58,7 @@ fn apply_xor_table(table: &tables::XorTable, input: u128) -> u128 {
 }
 
 pub struct Serpent {
-    subkeys: [Subkey; ROUNDS + 1],
+    subkeys: Subkeys,
 }
 
 impl Serpent {
@@ -50,6 +68,42 @@ impl Serpent {
             subkeys: derive_subkeys(binary_key),
         })
     }
+
+    pub fn encrypt_block(&self, block: u128) -> u128 {
+        let mut b_hat = apply_permutation(&tables::IP, block);
+        for i in 0..ROUNDS {
+            b_hat = do_round(i, b_hat, &self.subkeys);
+        }
+        apply_permutation(&tables::FP, b_hat)
+    }
+
+    pub fn decrypt_block(&self, block: u128) -> u128 {
+        let mut b_hat = apply_permutation(&tables::IP, block);
+        for i in (0..ROUNDS).rev() {
+            b_hat = do_round_inv(i, b_hat, &self.subkeys);
+        }
+        apply_permutation(&tables::FP, b_hat)
+    }
+}
+
+fn do_round(i: usize, b_hat_i: u128, k_hat: &Subkeys) -> u128 {
+    let xored = b_hat_i ^ k_hat[i];
+    let s_hat_i = apply_s_hat(i, xored);
+    if i <= ROUNDS - 2 {
+        apply_xor_table(&tables::LT, s_hat_i)
+    } else {
+        s_hat_i ^ k_hat[ROUNDS]
+    }
+}
+
+fn do_round_inv(i: usize, b_hat_i_plus_1: u128, k_hat: &Subkeys) -> u128 {
+    let s_hat_i = if i <= ROUNDS - 2 {
+        apply_xor_table(&tables::LT_INV, b_hat_i_plus_1)
+    } else {
+        b_hat_i_plus_1 ^ k_hat[ROUNDS]
+    };
+    let xored = apply_s_hat_inv(i, s_hat_i);
+    xored ^ k_hat[i]
 }
 
 fn parse_text_key(key: &str) -> Option<Key> {
@@ -198,6 +252,6 @@ mod tests {
             "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
         )
         .unwrap();
-        let subkeys = super::derive_subkeys(binary_key);
+        super::derive_subkeys(binary_key);
     }
 }
