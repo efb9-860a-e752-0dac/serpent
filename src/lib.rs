@@ -1,10 +1,12 @@
 mod tables;
 
+use std::convert::TryInto;
+
 type Key = [u8; 32];
 type Subkey = u128;
 type Subkeys = [Subkey; ROUNDS + 1];
 
-const PHI: u32 = 0x9e3779b9;
+const PHI: u32 = 0x9e37_79b9;
 const ROUNDS: usize = 32;
 
 fn apply_s(s_idx: usize, nibble: u8) -> u8 {
@@ -19,7 +21,7 @@ fn apply_s_hat(s_idx: usize, source: u128) -> u128 {
     let mut res = 0u128;
     for i in 0..32 {
         let src_nibble = (source >> (i * 4)) as u8 & 0xf;
-        let res_nibble = apply_s(s_idx, src_nibble) as u128;
+        let res_nibble = u128::from(apply_s(s_idx, src_nibble));
         res |= res_nibble << (i * 4);
     }
     res
@@ -29,16 +31,15 @@ fn apply_s_hat_inv(s_idx: usize, source: u128) -> u128 {
     let mut res = 0u128;
     for i in 0..32 {
         let src_nibble = (source >> (i * 4)) as u8 & 0xf;
-        let res_nibble = apply_s_inv(s_idx, src_nibble) as u128;
+        let res_nibble = u128::from(apply_s_inv(s_idx, src_nibble));
         res |= res_nibble << (i * 4);
     }
     res
 }
 
-fn apply_permutation(table: &[u8], input: u128) -> u128 {
+fn apply_permutation(table: &tables::Permutation, input: u128) -> u128 {
     let mut output = 0u128;
-    for p in 0..128 {
-        let in_shift = table[p];
+    for (p, in_shift) in table.iter().enumerate() {
         let bit = (input >> in_shift) & 1;
         output |= bit << p;
     }
@@ -47,12 +48,12 @@ fn apply_permutation(table: &[u8], input: u128) -> u128 {
 
 fn apply_xor_table(table: &tables::XorTable, input: u128) -> u128 {
     let mut output = 0u128;
-    for i in 0..128 {
+    for (i, indices) in table.iter().enumerate() {
         let mut bit = 0u8;
-        for bit_idx in table[i] {
+        for bit_idx in *indices {
             bit ^= (input >> bit_idx) as u8 & 1;
         }
-        output |= (bit as u128) << i;
+        output |= u128::from(bit) << i;
     }
     output
 }
@@ -142,21 +143,20 @@ fn parse_text_key(key: &str) -> Option<Key> {
     Some(key)
 }
 
-fn gather_nibble(words: &[u32], bit_idx: usize) -> u8 {
-    assert_eq!(words.len(), 4);
+fn gather_nibble(words: &[u32; 4], bit_idx: usize) -> u8 {
     let mut output = 0u8;
-    for i in 0..4 {
-        let bit = ((words[i] >> bit_idx) & 1) as u8;
+    for (i, word) in words.iter().enumerate() {
+        let bit = ((word >> bit_idx) & 1) as u8;
         output |= bit << i;
     }
     output
 }
 
-fn scatter_nibble(nibble: u8, words: &mut [u32], out_bit_idx: usize) {
+fn scatter_nibble(nibble: u8, words: &mut [u32; 4], out_bit_idx: usize) {
     assert_eq!(words.len(), 4);
-    for i in 0..4 {
-        let bit = ((nibble >> i) & 1) as u32;
-        words[i] |= bit << out_bit_idx;
+    for (i, word) in words.iter_mut().enumerate() {
+        let bit = u32::from((nibble >> i) & 1);
+        *word |= bit << out_bit_idx;
     }
 }
 
@@ -176,24 +176,27 @@ fn derive_subkeys(key: Key) -> [Subkey; ROUNDS + 1] {
     for i in 0..=ROUNDS {
         let s_idx = (ROUNDS + 3 - i) % ROUNDS;
         for j in 0..32 {
-            let words = &w[4 * i..4 * i + 4];
-            let input = gather_nibble(words, j);
+            let src = (&w[4 * i..4 * i + 4]).try_into().unwrap();
+            let input = gather_nibble(src, j);
+            
             let output = apply_s(s_idx, input);
-            scatter_nibble(output, &mut k[4 * i..4 * i + 4], j);
+
+            let dst = (&mut k[4 * i..4 * i + 4]).try_into().unwrap();
+            scatter_nibble(output, dst, j);
         }
     }
     // distribute 32-bit values k[] into 128-bit subkeys
     let mut subkeys = [0u128; ROUNDS + 1];
     for i in 0..33 {
-        subkeys[i] = k[4 * i] as u128
-            | (k[4 * i + 1] as u128) << 32
-            | (k[4 * i + 2] as u128) << 64
-            | (k[4 * i + 3] as u128) << 96;
+        subkeys[i] = u128::from(k[4 * i])
+            | u128::from(k[4 * i + 1]) << 32
+            | u128::from(k[4 * i + 2]) << 64
+            | u128::from(k[4 * i + 3]) << 96;
     }
 
     // apply IP to the key
-    for i in 0..subkeys.len() {
-        subkeys[i] = apply_permutation(&tables::IP, subkeys[i]);
+    for subkey in &mut subkeys[..] {
+        *subkey = apply_permutation(&tables::IP, *subkey);
     }
 
     subkeys

@@ -13,7 +13,7 @@ fn nibble_value(b: u8) -> u8 {
 
 fn bytes_from_hex_str(s: &str) -> Option<Vec<u8>> {
     let bytes = s.as_bytes();
-    if bytes.len() == 0 || bytes.len() % 2 == 1 || bytes.iter().any(|b| !b.is_ascii_hexdigit()) {
+    if bytes.is_empty() || bytes.len() % 2 == 1 || bytes.iter().any(|b| !b.is_ascii_hexdigit()) {
         return None;
     }
 
@@ -35,7 +35,7 @@ fn variable_key() {
     let mut pt = None;
     let mut key = None;
     for line in vk_txt.lines() {
-        let mut parts = line.splitn(2, "=");
+        let mut parts = line.splitn(2, '=');
         match (parts.next(), parts.next()) {
             (Some("PT"), Some(v)) => pt = bytes_from_hex_str(v),
             (Some("KEY"), Some(v)) => key = Some(v),
@@ -60,7 +60,7 @@ fn variable_text() {
     let mut pt = None;
     let mut key = None;
     for line in vt_txt.lines() {
-        let mut parts = line.splitn(2, "=");
+        let mut parts = line.splitn(2, '=');
         match (parts.next(), parts.next()) {
             (Some("PT"), Some(v)) => pt = bytes_from_hex_str(v),
             (Some("KEY"), Some(v)) => key = Some(v),
@@ -85,7 +85,7 @@ fn tables() {
     let mut pt = None;
     let mut key = None;
     for line in vt_txt.lines() {
-        let mut parts = line.splitn(2, "=");
+        let mut parts = line.splitn(2, '=');
         match (parts.next(), parts.next()) {
             (Some("PT"), Some(v)) => pt = bytes_from_hex_str(v),
             (Some("KEY"), Some(v)) => key = Some(v),
