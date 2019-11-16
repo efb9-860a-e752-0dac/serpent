@@ -63,11 +63,16 @@ pub struct Serpent {
 }
 
 impl Serpent {
+    pub fn with_binary_key(key: &[u8]) -> Option<Serpent> {
+        let expanded_key = expand_key(key, key.len() * 8)?;
+        Some(Serpent {
+            subkeys: derive_subkeys(expanded_key),
+        })
+    }
+
     pub fn with_text_key(key: &str) -> Option<Serpent> {
         let binary_key = parse_text_key(key)?;
-        Some(Serpent {
-            subkeys: derive_subkeys(binary_key),
-        })
+        Serpent::with_binary_key(&binary_key)
     }
 
     pub fn encrypt_block(&self, block: u128) -> u128 {
@@ -107,7 +112,7 @@ fn do_round_inv(i: usize, b_hat_i_plus_1: u128, k_hat: &Subkeys) -> u128 {
     xored ^ k_hat[i]
 }
 
-fn parse_text_key(key: &str) -> Option<Key> {
+fn parse_text_key(key: &str) -> Option<Vec<u8>> {
     if !key.is_ascii() {
         return None;
     }
@@ -140,6 +145,29 @@ fn parse_text_key(key: &str) -> Option<Key> {
         let offset = (len & 1) * 4;
         key[len / 2] |= 1 << offset;
     }
+    Some(key[..].into())
+}
+
+fn expand_key(source: &[u8], len_bits: usize) -> Option<Key> {
+    let source_bits = source.len() * 8;
+
+    // Bail out if the key material is too long or if the stated bit length
+    // mismatches the byte length.
+    if source.len() > 32 ||
+        len_bits > 256 ||
+        source_bits < len_bits ||
+        source_bits + 8 > len_bits {
+        return None;
+    }
+
+    let mut key = [0u8; 32];
+    key[..source.len()].copy_from_slice(&source);
+    if len_bits < 256 {
+        let byte_index = len_bits / 8;
+        let bit_index = len_bits % 8;
+        key[byte_index] |= 1 << bit_index;
+    }
+
     Some(key)
 }
 
@@ -202,6 +230,36 @@ fn derive_subkeys(key: Key) -> [Subkey; ROUNDS + 1] {
     subkeys
 }
 
+pub use block_cipher_trait;
+pub use block_cipher_trait::generic_array;
+pub use generic_array::typenum;
+
+use block_cipher_trait::BlockCipher;
+use generic_array::GenericArray;
+use typenum::{U1, U16, U32};
+
+impl BlockCipher for Serpent {
+    type KeySize = U32;
+    type BlockSize = U16;
+    type ParBlocks = U1;
+
+    fn new(key: &GenericArray<u8, U32>) -> Self {
+        Serpent::with_binary_key(&key).unwrap()
+    }
+
+    fn encrypt_block(&self, block: &mut GenericArray<u8, Self::BlockSize>) {
+        let input = u128::from_le_bytes(block.as_slice().try_into().unwrap());
+        let output = self.encrypt_block(input);
+        block.copy_from_slice(&u128::to_le_bytes(output));
+    }
+
+    fn decrypt_block(&self, block: &mut GenericArray<u8, Self::BlockSize>) {
+        let input = u128::from_le_bytes(block.as_slice().try_into().unwrap());
+        let output = self.decrypt_block(input);
+        block.copy_from_slice(&u128::to_le_bytes(output));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -247,14 +305,5 @@ mod tests {
                 0xef, 0xcd, 0xab, 0x89, 0x67, 0x45, 0x23, 0x01, //
             ]
         );
-    }
-
-    #[test]
-    fn derive_subkeys() {
-        let binary_key = super::parse_text_key(
-            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-        )
-        .unwrap();
-        super::derive_subkeys(binary_key);
     }
 }
