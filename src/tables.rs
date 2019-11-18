@@ -2,6 +2,8 @@ pub type SBox = [u8; 16];
 pub type Permutation = [u8; 128];
 pub type XorTable<'a> = [&'a [u8]; 128];
 
+/// Each row corresponds to a particular S-box. Each S-box contains
+/// a full mapping of input nibbles to output nibbles.
 pub const SBOX: [SBox; 8] = [
     [3, 8, 15, 1, 10, 6, 5, 11, 14, 13, 4, 2, 7, 0, 9, 12], // S0
     [15, 12, 2, 7, 9, 0, 5, 10, 1, 11, 14, 8, 6, 13, 3, 4], // S1
@@ -13,6 +15,9 @@ pub const SBOX: [SBox; 8] = [
     [1, 13, 15, 0, 14, 8, 2, 11, 7, 4, 12, 10, 9, 3, 5, 6], // S7
 ];
 
+/// Each row corresponds to the inverse of a particular S-box.
+/// Each of these S-boxes performs the inverse mapping of that
+/// original S-box.
 pub const SBOX_INV: [SBox; 8] = [
     [13, 3, 11, 0, 10, 6, 5, 12, 1, 14, 4, 7, 15, 9, 8, 2], // InvS0
     [5, 8, 2, 14, 15, 6, 12, 3, 11, 4, 7, 9, 1, 13, 10, 0], // InvS1
@@ -24,6 +29,8 @@ pub const SBOX_INV: [SBox; 8] = [
     [3, 0, 6, 13, 9, 14, 15, 8, 5, 12, 11, 7, 10, 1, 4, 2], // InvS7
 ];
 
+/// Initial permutation of subkeys/blocks, `y = IP[x]` indicates that
+/// output bit `x` comes from input bit `y`.
 pub const IP: Permutation = [
     0, 32, 64, 96, 1, 33, 65, 97, 2, 34, 66, 98, 3, 35, 67, 99, //
     4, 36, 68, 100, 5, 37, 69, 101, 6, 38, 70, 102, 7, 39, 71, 103, //
@@ -35,6 +42,8 @@ pub const IP: Permutation = [
     28, 60, 92, 124, 29, 61, 93, 125, 30, 62, 94, 126, 31, 63, 95, 127, //
 ];
 
+/// Initial permutation of subkeys/blocks, `y = IP[x]` indicates that
+/// output bit `x` comes from input bit `y`.
 pub const FP: Permutation = [
     0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, //
     64, 68, 72, 76, 80, 84, 88, 92, 96, 100, 104, 108, 112, 116, 120, 124, //
@@ -46,6 +55,8 @@ pub const FP: Permutation = [
     67, 71, 75, 79, 83, 87, 91, 95, 99, 103, 107, 111, 115, 119, 123, 127, //
 ];
 
+/// Linear transformation of blocks, each entry contains the input bit
+/// indices that should be XORed together to form that output bit.
 pub const LT: XorTable = [
     &[16, 52, 56, 70, 83, 94, 105],   //
     &[72, 114, 125],                  //

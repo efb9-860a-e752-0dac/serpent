@@ -17,11 +17,13 @@ fn bytes_from_hex_str(s: &str) -> Option<Vec<u8>> {
         return None;
     }
 
-    Some(bytes
-        .chunks_exact(2)
-        .rev()
-        .map(|chunk| nibble_value(chunk[0]) << 4 | nibble_value(chunk[1]))
-        .collect())
+    Some(
+        bytes
+            .chunks_exact(2)
+            .rev()
+            .map(|chunk| nibble_value(chunk[0]) << 4 | nibble_value(chunk[1]))
+            .collect(),
+    )
 }
 
 fn block_from_bytes(bytes: &[u8]) -> u128 {
