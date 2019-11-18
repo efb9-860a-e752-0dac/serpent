@@ -4,7 +4,10 @@ version = "0.1.0"
 license = "MIT OR Apache-2.0"
 authors = ["Lars Viklund <zao@zao.se>"]
 edition = "2018"
-description = "A pure Rust implementation of the Serpent block cipher candidate for the AES standard."
+description = """A pure Rust implementation of the Serpent block cipher candidate for the AES standard.
+
+This is very much not intended to be a vetted implementation with constant-time constant-space safety.
+It's more meant as a reference implementation for people who really need to use Serpent for some reason."""
 homepage = "https://gitlab.com/zao/serpent/"
 repository = "https://gitlab.com/zao/serpent/"
 
