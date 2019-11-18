@@ -153,10 +153,7 @@ fn expand_key(source: &[u8], len_bits: usize) -> Option<Key> {
 
     // Bail out if the key material is too long or if the stated bit length
     // mismatches the byte length.
-    if source.len() > 32 ||
-        len_bits > 256 ||
-        source_bits < len_bits ||
-        source_bits + 8 > len_bits {
+    if source_bits > 256 || len_bits > 256 || source_bits < len_bits {
         return None;
     }
 
@@ -206,7 +203,6 @@ fn derive_subkeys(key: Key) -> [Subkey; ROUNDS + 1] {
         for j in 0..32 {
             let src = (&w[4 * i..4 * i + 4]).try_into().unwrap();
             let input = gather_nibble(src, j);
-            
             let output = apply_s(s_idx, input);
 
             let dst = (&mut k[4 * i..4 * i + 4]).try_into().unwrap();
