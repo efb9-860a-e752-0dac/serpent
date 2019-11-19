@@ -1,6 +1,6 @@
 //! # Serpent
 //!
-//! `serpent-cipher` is an implementation of the
+//! This crate is an implementation of the
 //! [Serpent cipher](https://www.cl.cam.ac.uk/~rja14/serpent.html) most
 //! known for being one of the leading candidates for AES.
 //!
