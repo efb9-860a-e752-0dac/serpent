@@ -2,6 +2,8 @@
 
 A pure Rust implementation of the Serpent block cipher candidate for the AES standard.
 
+Officialy do by Zao at https://gitlab.com/zao/serpent
+
 ## Warnings
 
 This crate does not promise any form of implementation guarantees for timing or space characteristics. It's a naive translation of the reference C code from the [Serpent](https://www.cl.cam.ac.uk/~rja14/serpent.html) authors.
