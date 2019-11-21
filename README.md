@@ -2,7 +2,7 @@
 
 A pure Rust implementation of the Serpent block cipher candidate for the AES standard.
 
-Officialy do by Zao at https://gitlab.com/zao/serpent
+Officially done by Zao at https://gitlab.com/zao/serpent
 
 ## Warnings
 
